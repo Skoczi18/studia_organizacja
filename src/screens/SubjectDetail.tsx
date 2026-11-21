@@ -93,7 +93,9 @@ export function SubjectDetail({ id }: { id: string }) {
   const upcoming = scoped.filter(e => e.end > now)
   const past = scoped.filter(e => e.end <= now)
   const next = upcoming.find(e => !e.cancelled)
-  const last = [...past].reverse().find(e => !e.cancelled)
+  const active_ = scoped.filter(e => !e.cancelled)
+  const final = active_[active_.length - 1] // ostatnie zajęcia w semestrze
+  const left = active_.filter(e => e.end > now).length
   const subjTasks = tasks.filter(t => t.subjectId === s.id && (active === GENERAL ? !t.componentType || !types.includes(t.componentType) : t.componentType === active))
     .sort((a, b) => Number(a.done) - Number(b.done) || (a.due ?? '9999').localeCompare(b.due ?? '9999'))
   const c: Component = active === GENERAL ? {} : s.components?.[active] ?? {}
@@ -132,12 +134,12 @@ export function SubjectDetail({ id }: { id: string }) {
             <div className="small" style={{ color: 'var(--accent)', marginTop: 2 }}>{countdown(next.start)}</div></>
             : <div className="muted" style={{ marginTop: 4 }}>—</div>}
         </div>
-        <div className="card glass tap" onClick={() => last && setOpen(last)}>
-          <div className="small muted" style={{ fontWeight: 600 }}>OSTATNIE</div>
-          {last ? <><div style={{ fontWeight: 700, marginTop: 4 }}>{relDay(last.start)}</div>
-            <div className="small muted">{typeLabel(last.type)} · {last.start.slice(11, 16)}</div>
-            <div className="small" style={{ marginTop: 2, color: last.attendance === 'present' ? 'var(--green)' : last.attendance === 'absent' ? 'var(--red)' : 'var(--label-2)' }}>
-              {last.attendance === 'present' ? 'Byłem' : last.attendance === 'absent' ? 'Nie byłem' : 'Obecność?'}</div></>
+        <div className="card glass tap" onClick={() => final && setOpen(final)}>
+          <div className="small muted" style={{ fontWeight: 600 }}>OSTATNIE ZAJĘCIA</div>
+          {final ? <><div style={{ fontWeight: 700, marginTop: 4 }}>{relDay(final.start)}</div>
+            <div className="small muted">{typeLabel(final.type)} · {final.start.slice(11, 16)}{final.room ? ` · ${final.room}` : ''}</div>
+            <div className="small" style={{ marginTop: 2, color: left ? 'var(--accent)' : 'var(--green)' }}>
+              {left ? `zostało ${left} z ${active_.length} zajęć` : 'zajęcia zakończone'}</div></>
             : <div className="muted" style={{ marginTop: 4 }}>—</div>}
         </div>
       </div>
