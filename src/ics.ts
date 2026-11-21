@@ -100,3 +100,24 @@ export async function fetchIcs(url: string): Promise<ParsedEvent[]> {
   if (!text.includes('BEGIN:VCALENDAR')) throw new Error('To nie wygląda na plik iCal')
   return parseIcs(text)
 }
+
+/** Grupa zajęciowa z linku USOSweb (…pokazZajecia&gr_nr=1&zaj_cyk_id=24890). */
+export function groupFromUrl(url?: string): { unit: string; group: string } | null {
+  if (!url) return null
+  const unit = url.match(/zaj_cyk_id=(\d+)/)?.[1]
+  const group = url.match(/gr_nr=(\d+)/)?.[1]
+  return unit && group ? { unit, group } : null
+}
+
+export interface GroupDate { start: string; end: string; room: string; building: string }
+
+/** Wszystkie terminy grupy (także minione) z publicznego API USOS. */
+export async function fetchGroupDates(icalUrl: string, unit: string, group: string): Promise<GroupDate[]> {
+  const base = new URL(icalUrl).origin
+  const url = `${base}/services/tt/classgroup_dates2?unit_id=${unit}&group_number=${group}&fields=start_time|end_time|room_number|building_name`
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`USOS (grupa ${unit}/${group}): ${res.status}`)
+  const rows: any[] = await res.json()
+  const t = (s: string) => s.slice(0, 16).replace(' ', 'T')
+  return rows.map(r => ({ start: t(r.start_time), end: t(r.end_time), room: r.room_number ?? '', building: r.building_name?.pl ?? '' }))
+}

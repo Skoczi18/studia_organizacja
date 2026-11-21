@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, type 
 import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, type DocumentData } from 'firebase/firestore'
 import { auth, db, googleProvider } from './firebase'
 import type { CalEvent, Semester, Settings, Subject, Task, Year } from './types'
-import { fetchIcs, mapUsosEvent } from './ics'
+import { fetchGroupDates, fetchIcs, groupFromUrl, mapUsosEvent } from './ics'
 import { PALETTE, nowLocal, subjectKey, uid } from './utils'
 
 type Coll = 'years' | 'semesters' | 'subjects' | 'events' | 'tasks'
@@ -120,6 +120,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const payload = existing ? p.data : { ...p.data, semesterId: semId }
           ops.push(b => b.set(doc(db, base(), 'events', p.id), clean(payload), { merge: true }))
         }
+        // Feed iCal zawiera tylko nadchodzące zajęcia — minione terminy dociągamy z harmonogramu grup (publiczne API USOS)
+        let pastAdded = 0
+        const groups = new Map<string, { unit: string; group: string; data: (typeof parsed)[number]['data'] }>()
+        for (const p of parsed) {
+          const g = p.data.kind === 'class' ? groupFromUrl(p.data.url) : null
+          if (g) groups.set(`${g.unit}-${g.group}`, { ...g, data: p.data })
+        }
+        const nowStr = nowLocal()
+        const taken = new Set([...data.events, ...parsed.map(p => ({ ...p.data, id: p.id }))].map(e => `${e.subjectKey}|${e.type}|${e.start}`))
+        const results = await Promise.allSettled([...groups.values()].map(async g => ({ g, dates: await fetchGroupDates(url, g.unit, g.group) })))
+        for (const r of results) {
+          if (r.status !== 'fulfilled') { console.warn('historia grupy', r.reason); continue }
+          const { g, dates } = r.value
+          for (const d of dates) {
+            if (d.end >= nowStr) continue
+            const k = `${g.data.subjectKey}|${g.data.type}|${d.start}`
+            if (taken.has(k)) continue
+            taken.add(k)
+            const id = `cg-${g.unit}-${g.group}-${d.start.replace(/\D/g, '')}`
+            if (data.events.some(e => e.id === id)) continue
+            pastAdded++
+            ops.push(b => b.set(doc(db, base(), 'events', id), clean({
+              ...g.data, start: d.start, end: d.end, room: d.room, building: d.building, cancelled: false, semesterId: semId
+            }), { merge: true }))
+          }
+        }
+        added += pastAdded
+
         // przyszłe zajęcia z USOS, których nie ma już w feedzie → odwołane
         const ids = new Set(parsed.map(p => p.id))
         const now = nowLocal()
