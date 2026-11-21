@@ -141,14 +141,15 @@ h1, h2, h3, p { margin: 0; }
 
 /* lista grupowana jak w iOS */
 .list { border-radius: var(--radius); overflow: hidden; }
-.list > .item {
+.list .item {
+  color: inherit; font-size: inherit;
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px; min-height: 50px; position: relative;
   background: none; border: 0; width: 100%; text-align: left; cursor: pointer;
 }
-.list > .item + .item::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: 0.5px; background: var(--sep); }
-.list > .item.indent + .item.indent::before { left: 52px; }
-.list > button.item:active, .list > a.item:active { background: var(--fill); }
+.list .item + .item::before, .list > div + div > .item:first-child::before, .list > div + .item::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: 0.5px; background: var(--sep); }
+.list .item.indent + .item.indent::before { left: 52px; }
+.list button.item:active, .list a.item:active { background: var(--fill); }
 .item .chev { color: var(--label-3); font-size: 20px; line-height: 1; }
 .item .val { color: var(--label-2); text-align: right; }
 

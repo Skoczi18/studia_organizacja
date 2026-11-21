@@ -140,39 +140,110 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     const importData: Store['importData'] = async json => {
+      // Inteligentny import: dopasowuje semestry (po numerze) i przedmioty (po nazwie) do już istniejących
+      // i uzupełnia tylko puste pola — niczego, co już wpisałeś, nie nadpisuje.
+      const isEmpty = (v: any) => v == null || v === '' || (Array.isArray(v) && !v.length) ||
+        (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)
+      const fill = (target: any, src: any) => {
+        const out: any = {}
+        for (const [k, v] of Object.entries(src)) {
+          if (k === 'id') continue
+          const cur = target?.[k]
+          if (k === 'components' && v && typeof v === 'object') {
+            const comps: any = { ...(cur ?? {}) }
+            for (const [t, c] of Object.entries(v as any)) {
+              const merged: any = { ...(comps[t] ?? {}) }
+              for (const [ck, cv] of Object.entries(c as any)) if (isEmpty(merged[ck])) merged[ck] = cv
+              comps[t] = merged
+            }
+            out.components = comps
+          } else if (isEmpty(cur)) out[k] = v
+        }
+        return out
+      }
       const b = writeBatch(db)
-      let n = 0
-      const put = (c: Coll, items?: any[]) => (items ?? []).forEach(it => {
-        const { id, ...rest } = it
-        b.set(doc(db, base(), c, id ?? uid()), clean(rest), { merge: true }); n++
-      })
-      put('years', json.years)
-      put('semesters', json.semesters)
-      put('subjects', (json.subjects ?? []).map((s: any) => ({ key: subjectKey(s.name), createdAt: Date.now(), ...s })))
-      put('events', json.events)
-      put('tasks', (json.tasks ?? []).map((t: any) => ({ done: false, createdAt: Date.now(), ...t })))
-      const settings = { ...(json.settings ?? {}) }
-      if (json.activeSemesterId) settings.activeSemesterId = json.activeSemesterId
+      let created = 0, merged = 0
+      const semMap = new Map<string, string>()
+      const yearMap = new Map<string, string>()
+      for (const s of json.semesters ?? []) {
+        const ex = data.semesters.find(x => x.id === s.id || x.number === s.number)
+        if (ex) {
+          semMap.set(s.id, ex.id); yearMap.set(s.yearId, ex.yearId)
+          const f = fill(ex, s); delete f.yearId
+          if (Object.keys(f).length) { b.set(doc(db, base(), 'semesters', ex.id), clean(f), { merge: true }); merged++ }
+        } else semMap.set(s.id, s.id)
+      }
+      for (const y of json.years ?? []) {
+        const exId = yearMap.get(y.id) ?? data.years.find(x => x.id === y.id || x.order === y.order)?.id
+        if (exId) {
+          yearMap.set(y.id, exId)
+          const ex = data.years.find(x => x.id === exId)
+          const f = fill(ex, y)
+          if (Object.keys(f).length) { b.set(doc(db, base(), 'years', exId), clean(f), { merge: true }); merged++ }
+        } else {
+          yearMap.set(y.id, y.id)
+          const { id, ...rest } = y
+          b.set(doc(db, base(), 'years', id), clean(rest)); created++
+        }
+      }
+      for (const s of json.semesters ?? []) {
+        if (data.semesters.some(x => x.id === semMap.get(s.id))) continue
+        const { id, ...rest } = s
+        b.set(doc(db, base(), 'semesters', id), clean({ ...rest, yearId: yearMap.get(s.yearId) ?? s.yearId })); created++
+      }
+      const subjMap = new Map<string, string>()
+      for (const s0 of json.subjects ?? []) {
+        const s = { key: subjectKey(s0.name), ...s0, semesterId: semMap.get(s0.semesterId) ?? s0.semesterId }
+        const ex = data.subjects.find(x => x.id === s.id) ??
+          data.subjects.find(x => x.semesterId === s.semesterId && x.key === s.key)
+        if (ex) {
+          subjMap.set(s0.id, ex.id)
+          const f = fill(ex, s)
+          if (Object.keys(f).length) { b.set(doc(db, base(), 'subjects', ex.id), clean(f), { merge: true }); merged++ }
+        } else {
+          subjMap.set(s0.id, s0.id)
+          const { id, ...rest } = s
+          b.set(doc(db, base(), 'subjects', id), clean({ createdAt: Date.now(), ...rest })); created++
+        }
+      }
+      for (const e of json.events ?? []) {
+        const { id, ...rest } = e
+        b.set(doc(db, base(), 'events', id ?? uid()), clean({ ...rest, semesterId: semMap.get(rest.semesterId) ?? rest.semesterId }), { merge: true }); created++
+      }
+      for (const t of json.tasks ?? []) {
+        if (data.tasks.some(x => x.id === t.id)) continue
+        const { id, ...rest } = t
+        b.set(doc(db, base(), 'tasks', id ?? uid()), clean({ done: false, createdAt: Date.now(), ...rest, subjectId: subjMap.get(rest.subjectId) ?? rest.subjectId ?? null })); created++
+      }
+      const st = data.settings
+      const settings: Partial<Settings> = {}
+      const js = json.settings ?? {}
+      if (js.icalUrl && !st.icalUrl) settings.icalUrl = js.icalUrl
+      if (js.profile) settings.profile = { ...js.profile, ...Object.fromEntries(Object.entries(st.profile ?? {}).filter(([, v]) => !isEmpty(v))) }
+      if (json.activeSemesterId && !st.activeSemesterId) settings.activeSemesterId = semMap.get(json.activeSemesterId) ?? json.activeSemesterId
       if (Object.keys(settings).length) b.set(doc(db, base()), { settings: clean(settings) }, { merge: true })
       await b.commit()
 
       let examMsg = ''
       if (json.examNotes?.length) {
         let parsed: ReturnType<typeof mapUsosEvent>[] = []
-        const url = settings.icalUrl ?? data.settings.icalUrl
+        const url = st.icalUrl ?? js.icalUrl
         if (url) {
           try { parsed = (await fetchIcs(url)).map(mapUsosEvent) } catch (e) { console.warn(e) }
         }
-        const semId = json.activeSemesterId ?? activeSemester?.id
+        const semId = semMap.get(json.activeSemesterId) ?? activeSemester?.id
         const b2 = writeBatch(db)
         let matched = 0
         for (const x of json.examNotes) {
-          const hit = parsed.find(p => p.data.kind === 'exam' && p.data.subjectKey === x.subjectKey &&
-            p.data.start.startsWith(x.date) && (!x.time || p.data.start.slice(11, 16) === x.time))
-          const userFields = clean({ note: x.note, examForm: x.examForm, attempt: x.attempt ?? 'I termin', examStatus: x.examStatus ?? 'todo' })
+          const sameExam = (start: string, key: string) => key === x.subjectKey && start.startsWith(x.date) && (!x.time || start.slice(11, 16) === x.time)
+          const hit = parsed.find(p => p.data.kind === 'exam' && sameExam(p.data.start, p.data.subjectKey))
+          const existing = data.events.find(e => e.kind === 'exam' && sameExam(e.start, e.subjectKey))
+          const userFields = fill(existing ?? {}, { note: x.note, examForm: x.examForm, attempt: x.attempt ?? 'I termin', examStatus: x.examStatus ?? 'todo' })
           if (hit) {
-            b2.set(doc(db, base(), 'events', hit.id), { ...clean(hit.data), semesterId: semId, ...userFields }, { merge: true })
+            b2.set(doc(db, base(), 'events', hit.id), clean({ ...hit.data, semesterId: existing?.semesterId ?? semId, ...userFields }), { merge: true })
             matched++
+          } else if (existing) {
+            b2.set(doc(db, base(), 'events', existing.id), clean(userFields), { merge: true }); matched++
           } else {
             const start = `${x.date}T${x.time ?? '09:00'}`
             b2.set(doc(db, base(), 'events', uid()), clean({
@@ -182,9 +253,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }
         await b2.commit()
-        examMsg = `, egzaminy: ${matched}/${json.examNotes.length} dopasowane do USOS`
+        examMsg = `, egzaminy: ${matched}/${json.examNotes.length} dopasowane`
       }
-      return `Zaimportowano ${n} elementów${examMsg}.`
+      return `Import: ${merged} uzupełnionych, ${created} nowych${examMsg}.`
     }
 
     const exportData = () => {
