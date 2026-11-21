@@ -18,7 +18,7 @@ export function EventRow({ e, onClick, showSubjectName = true, showDate }: { e: 
         {fmtTime(e.start)}<span>{fmtTime(e.end)}</span>
       </div>
       <div className="body">
-        <div className="ttl">{showSubjectName ? (s?.shortName || s?.name || e.title) : typeLabel(e.type)}</div>
+        <div className="ttl">{showSubjectName ? (s?.shortName || s?.name || e.title) : e.kind === 'exam' ? (e.attempt || 'Egzamin') : typeLabel(e.type)}</div>
         <div className="meta">
           {showSubjectName && <span>{e.kind === 'exam' ? (e.attempt || 'Egzamin') : typeLabel(e.type)}</span>}
           {e.room && <span>Sala {e.room}</span>}

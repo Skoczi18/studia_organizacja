@@ -9,7 +9,7 @@ import { PALETTE, fmtGrade, nowLocal, relDay, fmtTime, typeLabel, uid } from '..
 import { go } from '../router'
 
 export const initials = (s: Subject) =>
-  (s.shortName || s.name).split(/\s+/).filter(w => w.length > 2 || /^[A-Z0-9]/.test(w)).slice(0, 3).map(w => w[0]).join('').toUpperCase() || s.name.slice(0, 2)
+  (s.shortName && s.shortName.replace(/\s/g, '').length <= 4 ? s.shortName.replace(/\s/g, '') : null) || (s.shortName || s.name).split(/\s+/).filter(w => w.length > 2 || /^[A-Z0-9]/.test(w)).slice(0, 3).map(w => w[0]).join('').toUpperCase() || s.name.slice(0, 2)
 
 export function Subjects() {
   const { semesterSubjects, semesters, years, activeSemester, saveSettings, events, subjects } = useStore()
