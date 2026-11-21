@@ -26,6 +26,10 @@ export interface Component {
   attendance?: AttendanceRule
   absenceLimit?: number | null
   notes?: string
+  rules?: string
+  gradeParts?: GradePart[]
+  grade?: number | null
+  links?: Link[]
 }
 
 export interface GradePart {
@@ -93,6 +97,7 @@ export interface Task {
   done: boolean
   notes?: string
   weight?: string
+  componentType?: string | null // 'W' | 'LAB' | … ; brak = ogólne
   createdAt: number
 }
 

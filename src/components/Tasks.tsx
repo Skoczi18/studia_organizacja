@@ -33,7 +33,7 @@ export function TaskList({ tasks, onOpen, showSubject = true }: { tasks: Task[];
 }
 
 export function TaskSheet({ task, onClose }: { task: Task | null; onClose: () => void }) {
-  const { save, remove, semesterSubjects, tasks } = useStore()
+  const { save, remove, semesterSubjects, tasks, subjects } = useStore()
   const [t, setT] = useState<Task | null>(task)
   useEffect(() => setT(task), [task])
   if (!t) return null
@@ -50,6 +50,18 @@ export function TaskSheet({ task, onClose }: { task: Task | null; onClose: () =>
             {semesterSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </Field>
+        {t.subjectId && (() => {
+          const s = subjects.find(x => x.id === t.subjectId)
+          const types = Object.keys(s?.components ?? {})
+          return types.length ? (
+            <Field label="Dotyczy">
+              <select className="input" value={t.componentType ?? ''} onChange={e => set({ componentType: e.target.value || null })}>
+                <option value="">Całego przedmiotu</option>
+                {types.map(ty => <option key={ty} value={ty}>{ty === 'LAB' ? 'Laboratorium' : ty === 'W' ? 'Wykładu' : ty}</option>)}
+              </select>
+            </Field>
+          ) : null
+        })()}
         <div className="form-grid">
           <Field label="Termin"><input className="input" type="date" value={t.due?.slice(0, 10) ?? ''} onChange={e => set({ due: e.target.value || null })} /></Field>
           <Field label="Waga / punkty"><input className="input" value={t.weight ?? ''} placeholder="np. 16%" onChange={e => set({ weight: e.target.value })} /></Field>

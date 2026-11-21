@@ -198,7 +198,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           data.subjects.find(x => x.semesterId === s.semesterId && x.key === s.key)
         if (ex) {
           subjMap.set(s0.id, ex.id)
-          const f = fill(ex, s)
+          const f = json.overwrite
+            ? Object.fromEntries(Object.entries(s).filter(([k]) => !['id', 'semesterId', 'key', 'name', 'color', 'createdAt'].includes(k)))
+            : fill(ex, s)
           if (Object.keys(f).length) { b.set(doc(db, base(), 'subjects', ex.id), clean(f), { merge: true }); merged++ }
         } else {
           subjMap.set(s0.id, s0.id)
@@ -211,7 +213,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         b.set(doc(db, base(), 'events', id ?? uid()), clean({ ...rest, semesterId: semMap.get(rest.semesterId) ?? rest.semesterId }), { merge: true }); created++
       }
       for (const t of json.tasks ?? []) {
-        if (data.tasks.some(x => x.id === t.id)) continue
+        if (data.tasks.some(x => x.id === t.id)) {
+          if (json.overwrite) {
+            const { id, subjectId, done, ...rest } = t
+            b.set(doc(db, base(), 'tasks', id), clean({ ...rest, ...(subjectId ? { subjectId: subjMap.get(subjectId) ?? subjectId } : {}) }), { merge: true }); merged++
+          }
+          continue
+        }
+        if (!t.title) continue
         const { id, ...rest } = t
         b.set(doc(db, base(), 'tasks', id ?? uid()), clean({ done: false, createdAt: Date.now(), ...rest, subjectId: subjMap.get(rest.subjectId) ?? rest.subjectId ?? null })); created++
       }
@@ -238,7 +247,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const sameExam = (start: string, key: string) => key === x.subjectKey && start.startsWith(x.date) && (!x.time || start.slice(11, 16) === x.time)
           const hit = parsed.find(p => p.data.kind === 'exam' && sameExam(p.data.start, p.data.subjectKey))
           const existing = data.events.find(e => e.kind === 'exam' && sameExam(e.start, e.subjectKey))
-          const userFields = fill(existing ?? {}, { note: x.note, examForm: x.examForm, attempt: x.attempt ?? 'I termin', examStatus: x.examStatus ?? 'todo' })
+          const userFields = (json.overwrite ? (_: any, v: any) => clean(v) : fill)(existing ?? {}, { note: x.note, examForm: x.examForm, attempt: x.attempt ?? 'I termin', examStatus: x.examStatus ?? 'todo' })
           if (hit) {
             b2.set(doc(db, base(), 'events', hit.id), clean({ ...hit.data, semesterId: existing?.semesterId ?? semId, ...userFields }), { merge: true })
             matched++

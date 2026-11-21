@@ -44,6 +44,13 @@ export function EventSheet({ event, onClose }: { event: CalEvent | null; onClose
           {s && <button className="item" onClick={() => { onClose(); go('subjects/' + s.id) }}><span className="dot" style={{ background: s.color }} /><div className="grow">Otwórz przedmiot</div><span className="chev">›</span></button>}
         </div>
 
+        {comp?.notes && (
+          <div className="card glass small pre" style={{ padding: 12 }}>
+            <div className="muted" style={{ fontWeight: 600, marginBottom: 4 }}>NOTATKI · {e.type === 'LAB' ? 'LABY' : typeLabel(e.type).toUpperCase()}</div>
+            {comp.notes}
+          </div>
+        )}
+
         {manual && (
           <div className="form-grid">
             <Field label="Tytuł" full><input className="input" value={e.title} onChange={x => set({ title: x.target.value })} /></Field>
