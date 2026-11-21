@@ -330,3 +330,60 @@ textarea.input { min-height: 96px; line-height: 1.4; }
   .app { padding-left: 24px; padding-right: 24px; }
   .sheet { bottom: 20px; border-radius: 28px; border-bottom: 0.5px solid var(--glass-border); }
 }
+
+/* ---------- kalendarz: miesiąc z etykietami ---------- */
+.mgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-radius: var(--radius); overflow: hidden; padding: 4px 0 2px; }
+.mgrid .wd { padding: 6px 0; }
+.mcell {
+  min-height: 92px; padding: 4px 2px 6px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  border-top: 0.5px solid var(--sep); cursor: pointer; transition: background .15s;
+}
+.mcell .n { align-self: center; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; font-size: 15px; font-weight: 500; margin-bottom: 1px; }
+.mcell.out { opacity: .38; }
+.mcell.wknd .n { color: var(--label-2); }
+.mcell.sel { background: var(--fill); }
+.mcell.today .n { background: var(--red); color: #fff; font-weight: 700; }
+.pill {
+  display: block; width: 100%; min-width: 0; border: 0.5px solid; border-radius: 6px; padding: 2px 4px;
+  font-size: 10.5px; font-weight: 600; line-height: 1.25; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pill b { font-weight: 800; opacity: .75; }
+.pill.cancelled { text-decoration: line-through; opacity: .5; }
+.pill.exam { font-weight: 800; }
+.pill:active { filter: brightness(1.3); }
+.more { font-size: 11px; color: var(--label-2); text-align: center; font-weight: 600; }
+
+/* ---------- kalendarz: dzień z osią godzin ---------- */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); border-radius: 20px; padding: 6px; margin-bottom: 12px; }
+.wday { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 14px; cursor: pointer; }
+.wday .l { font-size: 11px; font-weight: 600; color: var(--label-2); }
+.wday .n { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; font-size: 18px; font-weight: 500; }
+.wday.in { background: var(--fill); }
+.wday.today .n { color: var(--red); font-weight: 700; }
+.wday.sel .n { background: var(--red); color: #fff; font-weight: 700; }
+.wday .dots { display: flex; gap: 2px; height: 5px; }
+.wday .dots i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+.tgrid { border-radius: var(--radius); overflow: hidden; }
+.thead { display: grid; border-bottom: 0.5px solid var(--sep); position: sticky; top: 0; }
+.th { text-align: center; padding: 10px 2px; font-size: 14px; font-weight: 600; color: var(--label-2); border-left: 0.5px solid var(--sep); }
+.th.today { color: var(--red); }
+.tbody { display: grid; position: relative; margin-top: 8px; }
+.hours { position: relative; }
+.hours span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 11px; color: var(--label-2); font-variant-numeric: tabular-nums; }
+.tcol { position: relative; border-left: 0.5px solid var(--sep); }
+.tcol .hl { position: absolute; left: 0; right: 0; height: 0; border-top: 0.5px solid var(--sep); }
+.tev {
+  position: absolute; border: 0; border-left: 3.5px solid; border-radius: 8px; padding: 4px 6px; text-align: left;
+  display: flex; flex-direction: column; gap: 1px; overflow: hidden; cursor: pointer; color: var(--label);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: transform .12s;
+}
+.tev:active { transform: scale(0.97); }
+.tev .tt { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.tev .tn { font-size: 13.5px; font-weight: 600; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.tev .tm { font-size: 11.5px; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tev .tbadges { position: absolute; top: 3px; right: 5px; font-size: 11px; font-weight: 700; color: var(--label-2); }
+.tev.past { opacity: .6; }
+.tev.cancelled .tn { text-decoration: line-through; }
+.now { position: absolute; left: -3px; right: 0; height: 2px; background: var(--red); z-index: 3; pointer-events: none; }
+.now::before { content: ''; position: absolute; left: -4px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
