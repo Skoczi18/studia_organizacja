@@ -119,11 +119,18 @@ function MonthView({ cursor, setCursor, sel, setSel, byDay, onOpen, onDayOpen, g
         {cells.map(d => {
           const k = dayKey(d)
           const evs = byDay.get(k) ?? []
+          // łączymy bloki tego samego przedmiotu i typu następujące po sobie (np. 2×90 min)
+          const groups: { e: CalEvent; n: number }[] = []
+          for (const e of evs) {
+            const last = groups[groups.length - 1]
+            if (last && last.e.subjectKey === e.subjectKey && last.e.type === e.type && last.e.kind === e.kind && !!last.e.cancelled === !!e.cancelled) last.n++
+            else groups.push({ e, n: 1 })
+          }
           return (
             <div key={k} className={'mcell' + (d.getMonth() !== cursor.getMonth() ? ' out' : '') + (k === today ? ' today' : '') + (k === sel ? ' sel' : '') + (d.getDay() % 6 === 0 ? ' wknd' : '')}
               onClick={() => (k === sel && evs.length ? onDayOpen(k) : setSel(k))}>
               <span className="n">{d.getDate()}</span>
-              {evs.slice(0, evs.length > MAX ? MAX - 1 : MAX).map(e => {
+              {groups.slice(0, groups.length > MAX ? MAX - 1 : MAX).map(({ e, n }) => {
                 const s = subjectOf(e)
                 const c = colorOf(e)
                 const label = s?.shortName || s?.name || e.title
@@ -131,11 +138,11 @@ function MonthView({ cursor, setCursor, sel, setSel, byDay, onOpen, onDayOpen, g
                   <button key={e.id} className={'pill' + (e.cancelled ? ' cancelled' : '') + (e.kind === 'exam' ? ' exam' : '')}
                     style={{ background: hexA(c, 0.26), color: c, borderColor: hexA(c, 0.5) }}
                     onClick={ev => { ev.stopPropagation(); onOpen(e) }}>
-                    {e.kind === 'exam' ? '★ ' : TYPE_SHORT[e.type] ? <b>{TYPE_SHORT[e.type]} </b> : ''}{label}
+                    {e.kind === 'exam' ? '★ ' : TYPE_SHORT[e.type] ? <b>{TYPE_SHORT[e.type]} </b> : ''}{label}{n > 1 ? <b> ×{n}</b> : ''}
                   </button>
                 )
               })}
-              {evs.length > MAX && <span className="more">+{evs.length - MAX + 1}</span>}
+              {groups.length > MAX && <span className="more">+{groups.length - MAX + 1}</span>}
             </div>
           )
         })}
