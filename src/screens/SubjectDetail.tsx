@@ -93,6 +93,7 @@ export function SubjectDetail({ id }: { id: string }) {
   const upcoming = scoped.filter(e => e.end > now)
   const past = scoped.filter(e => e.end <= now)
   const next = upcoming.find(e => !e.cancelled)
+  const lastDone = [...past].reverse().find(e => !e.cancelled) // ostatnio odbyte
   const active_ = scoped.filter(e => !e.cancelled)
   const final = active_[active_.length - 1] // ostatnie zajęcia w semestrze
   const left = active_.filter(e => e.end > now).length
@@ -126,20 +127,31 @@ export function SubjectDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="form-grid" style={{ marginTop: 12 }}>
-        <div className="card glass tap" onClick={() => next && setOpen(next)}>
-          <div className="small muted" style={{ fontWeight: 600 }}>NASTĘPNE</div>
-          {next ? <><div style={{ fontWeight: 700, marginTop: 4 }}>{relDay(next.start)}</div>
-            <div className="small muted">{typeLabel(next.type)} · {next.start.slice(11, 16)}{next.room ? ` · ${next.room}` : ''}</div>
-            <div className="small" style={{ color: 'var(--accent)', marginTop: 2 }}>{countdown(next.start)}</div></>
+      <div className="card glass tap" style={{ marginTop: 12 }} onClick={() => next && setOpen(next)}>
+        <div className="small muted" style={{ fontWeight: 600 }}>NASTĘPNE ZAJĘCIA</div>
+        {next ? <div className="row-flex" style={{ marginTop: 4, alignItems: 'flex-end' }}>
+          <div className="grow">
+            <div style={{ fontWeight: 700, fontSize: 18 }}>{relDay(next.start)}</div>
+            <div className="small muted">{typeLabel(next.type)} · {next.start.slice(11, 16)}–{next.end.slice(11, 16)}{next.room ? ` · sala ${next.room}` : ''}</div>
+          </div>
+          <span className="chip blue">{countdown(next.start)}</span>
+        </div> : <div className="muted" style={{ marginTop: 4 }}>Brak nadchodzących zajęć</div>}
+      </div>
+      <div className="form-grid" style={{ marginTop: 10 }}>
+        <div className="card glass tap" onClick={() => lastDone && setOpen(lastDone)}>
+          <div className="small muted" style={{ fontWeight: 600 }}>OSTATNIO ODBYTE</div>
+          {lastDone ? <><div style={{ fontWeight: 700, marginTop: 4 }}>{relDay(lastDone.start)}</div>
+            <div className="small muted">{typeLabel(lastDone.type)} · {lastDone.start.slice(11, 16)}</div>
+            <div className="small" style={{ marginTop: 2, color: lastDone.attendance === 'present' ? 'var(--green)' : lastDone.attendance === 'absent' ? 'var(--red)' : 'var(--label-2)' }}>
+              {lastDone.attendance === 'present' ? 'Byłem' : lastDone.attendance === 'absent' ? 'Nie byłem' : 'Obecność?'}</div></>
             : <div className="muted" style={{ marginTop: 4 }}>—</div>}
         </div>
         <div className="card glass tap" onClick={() => final && setOpen(final)}>
-          <div className="small muted" style={{ fontWeight: 600 }}>OSTATNIE ZAJĘCIA</div>
+          <div className="small muted" style={{ fontWeight: 600 }}>OSTATNIE W SEMESTRZE</div>
           {final ? <><div style={{ fontWeight: 700, marginTop: 4 }}>{relDay(final.start)}</div>
             <div className="small muted">{typeLabel(final.type)} · {final.start.slice(11, 16)}{final.room ? ` · ${final.room}` : ''}</div>
             <div className="small" style={{ marginTop: 2, color: left ? 'var(--accent)' : 'var(--green)' }}>
-              {left ? `zostało ${left} z ${active_.length} zajęć` : 'zajęcia zakończone'}</div></>
+              {left ? `zostało ${left} z ${active_.length}` : 'zajęcia zakończone'}</div></>
             : <div className="muted" style={{ marginTop: 4 }}>—</div>}
         </div>
       </div>
